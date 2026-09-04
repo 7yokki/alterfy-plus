@@ -1,0 +1,11 @@
+{
+  "schema": 1,
+  "layout": "tools/<platform>-<arch>/",
+  "targets": ["windows-x64", "windows-arm64", "linux-x64", "linux-arm64", "macos-x64", "macos-arm64"],
+  "tools": [
+    {"name": "vlc", "required": true, "note": "Ship the VLC runtime and plugins for the matching target."},
+    {"name": "yt-dlp", "required": true, "note": "Use the standalone binary for offline downloads."},
+    {"name": "ffmpeg", "required": false, "note": "Enables conversion and loudnorm exports."}
+  ],
+  "policy": "Build pipelines must download redistributable binaries from their official sources and preserve their licenses."
+}

@@ -23,6 +23,13 @@ from PyQt6.QtGui import (
 import yt_dlp
 import requests
 
+from platform_tools import configure_runtime, runtime_report
+from audio_engine import AudioEnhancer, AudioProfile
+
+# Resolve bundled native dependencies before python-vlc is imported. The
+# fallback remains PATH-based for development installations.
+configure_runtime()
+
 try:
     import vlc
     VLC_AVAILABLE = True
@@ -380,6 +387,7 @@ class AudioPlayer(QObject):
         super().__init__()
         self._inst = self._player = None
         self._vol  = 80
+        self.audio = AudioEnhancer()
         self._timer = QTimer()
         self._timer.setInterval(500)
         self._timer.timeout.connect(self._poll)
@@ -391,7 +399,7 @@ class AudioPlayer(QObject):
         try:
             self._inst   = vlc.Instance("--no-video", "--quiet",
                                          "--network-caching=2000",
-                                         "--live-caching=2000")
+                                         "--live-caching=2000", *self.audio.vlc_args())
             self._player = self._inst.media_player_new()
             self._player.audio_set_volume(self._vol)
         except Exception as ex:
@@ -428,6 +436,14 @@ class AudioPlayer(QObject):
     def set_volume(self, v: int):
         self._vol = max(0, min(100, v))
         if self._player: self._player.audio_set_volume(self._vol)
+
+    def apply_audio_profile(self, profile: dict):
+        """Apply a new profile to future VLC media sessions."""
+        self.audio.profile = AudioProfile(**{k: v for k, v in profile.items() if k in AudioProfile.__dataclass_fields__})
+        # VLC filter settings are instance-level; rebuild safely when idle.
+        was_playing = self.is_playing()
+        if self._player and not was_playing:
+            self._init()
 
     def is_playing(self) -> bool:
         return bool(self._player and self._player.get_state() == vlc.State.Playing)
@@ -1706,6 +1722,7 @@ class AboutPage(BasePage):
 
 class SettingsPage(BasePage):
     language_changed = pyqtSignal(str)   # new lang code
+    audio_profile_changed = pyqtSignal(dict)
 
     def __init__(self, dm: DataManager, parent=None):
         super().__init__(dm, parent)
@@ -1772,8 +1789,42 @@ class SettingsPage(BasePage):
         note.setStyleSheet(f"color: {TEXT_DIM}; font-size: 12px; background: transparent;")
         lay.addWidget(note)
 
+        # ── Alterfy+ audio lab ─────────────────────────
+        lay.addSpacing(26)
+        audio_hdr = QLabel("Alterfy+ Audio Lab")
+        audio_hdr.setStyleSheet(f"color: {TEXT_PRIMARY}; font-size: 18px; font-weight: 700; background: transparent;")
+        lay.addWidget(audio_hdr)
+        audio_sub = QLabel("Bass boost, preamp ve akıllı ses eşitleme. Ayarlar sonraki oynatmada uygulanır.")
+        audio_sub.setStyleSheet(f"color: {TEXT_SECONDARY}; font-size: 13px; background: transparent;")
+        lay.addWidget(audio_sub)
+        self._audio_sliders = {}
+        for key, label, lo, hi, value in (
+            ("bass_db", "Bass boost (dB)", 0, 12, 0),
+            ("preamp_db", "Preamp (dB)", -12, 12, 0),
+            ("treble_db", "Tiz (dB)", -8, 8, 0),
+        ):
+            row = QHBoxLayout(); row.setContentsMargins(0, 8, 0, 0)
+            text = QLabel(f"{label}: {value}"); text.setFixedWidth(150)
+            text.setStyleSheet(f"color: {TEXT_SECONDARY}; background: transparent;")
+            slider = QSlider(Qt.Orientation.Horizontal); slider.setRange(lo, hi); slider.setValue(value)
+            slider.valueChanged.connect(lambda v, k=key, l=text, n=label: (l.setText(f"{n}: {v:+d}"), self._emit_audio_profile()))
+            row.addWidget(text); row.addWidget(slider, 1); lay.addLayout(row)
+            self._audio_sliders[key] = slider
+        self._normalize_audio = QPushButton("✓  Smart loudness normalization (−14 LUFS)")
+        self._normalize_audio.setCheckable(True); self._normalize_audio.setChecked(True)
+        self._normalize_audio.setStyleSheet(f"color: {TEXT_SECONDARY}; background: {BG_CARD}; border: 1px solid {BORDER_COLOR}; border-radius: 8px; padding: 10px; text-align: left;")
+        self._normalize_audio.toggled.connect(self._emit_audio_profile)
+        lay.addWidget(self._normalize_audio)
+
         lay.addStretch()
         self._highlight_current()
+
+    def _emit_audio_profile(self):
+        self.audio_profile_changed.emit({
+            **{key: slider.value() for key, slider in self._audio_sliders.items()},
+            "normalize": self._normalize_audio.isChecked(),
+            "target_lufs": -14.0,
+        })
 
     def _lang_btn(self, code: str, name: str) -> QPushButton:
         btn = QPushButton(name)
@@ -1892,6 +1943,10 @@ class AlterfyWindow(QMainWindow):
 
         self._build_ui()
         self._build_statusbar()
+        report = runtime_report()
+        missing = [name for name in ("vlc", "ffmpeg") if not report.get(name)]
+        if missing:
+            self.show_status("Portable tools missing: " + ", ".join(missing) + " (PATH fallback active)", 7000)
         self._register_media_keys()
 
     # ── UI ──────────────────────────────────────
@@ -1932,6 +1987,8 @@ class AlterfyWindow(QMainWindow):
         self.library_page.open_playlist.connect(self._open_playlist)
         self.detail_page.back_clicked.connect(lambda: self._nav(2))
         self.settings_page.language_changed.connect(self._on_lang_change)
+        self.settings_page.audio_profile_changed.connect(self._on_audio_profile)
+        self.player.apply_audio_profile(self.dm.get_audio_profile())
 
         body.addWidget(self.stack, 1)
 
@@ -2119,6 +2176,11 @@ class AlterfyWindow(QMainWindow):
         self.lyrics_panel.retranslate()
         self.player_bar.lyrics_btn.setToolTip(t("lyrics_title"))
         self.show_status(f"Language changed to {LANGUAGES.get(code, code)}", 4000)
+
+    def _on_audio_profile(self, profile: dict):
+        self.dm.save_audio_profile(profile)
+        self.player.apply_audio_profile(profile)
+        self.show_status("Audio profile updated", 2500)
 
     # ── playback ─────────────────────────────
 

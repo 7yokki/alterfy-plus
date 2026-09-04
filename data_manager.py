@@ -8,7 +8,7 @@ import time
 from typing import List, Dict, Optional
 from collections import Counter
 
-DATA_DIR  = os.path.join(os.path.expanduser("~"), ".alterfy")
+DATA_DIR  = os.path.join(os.path.expanduser("~"), ".alterfy-plus")
 DATA_FILE = os.path.join(DATA_DIR, "userdata.json")
 
 _EMPTY = {
@@ -17,6 +17,8 @@ _EMPTY = {
     "play_counts":    {},       # {video_id: int}
     "artist_counts":  {},       # {artist_name: int}
     "playlists":      [],       # [{id, name, tracks:[...], created_ts}]
+    "audio_profile":  {"preamp_db": 0.0, "bass_db": 0.0, "treble_db": 0.0, "normalize": True, "target_lufs": -14.0},
+    "offline_tracks": [],       # locally downloaded metadata
 }
 
 MAX_SEARCH_HISTORY = 30
@@ -166,6 +168,25 @@ class DataManager:
         if not pl:
             return 0
         return sum(int(t.get("duration") or 0) for t in pl["tracks"])
+
+    # ── Alterfy+ settings/offline library ───────────────────────
+
+    def get_audio_profile(self) -> dict:
+        return dict(self._data.get("audio_profile", _EMPTY["audio_profile"]))
+
+    def save_audio_profile(self, profile: dict):
+        self._data["audio_profile"] = dict(profile)
+        self._flush()
+
+    def add_offline_track(self, meta: dict):
+        entry = dict(meta)
+        tracks = [t for t in self._data.get("offline_tracks", []) if t.get("id") != entry.get("id")]
+        tracks.insert(0, entry)
+        self._data["offline_tracks"] = tracks[:1000]
+        self._flush()
+
+    def get_offline_tracks(self) -> List[dict]:
+        return list(self._data.get("offline_tracks", []))
 
     def _flush(self):
         save(self._data)

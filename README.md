@@ -1,133 +1,74 @@
-# Alterfy <img src="icon.png" width="64" align="center">
+# Alterfy+
 
-**Alterfy**, YouTube üzerinden müzik dinleme deneyimini masaüstüne taşıyan, Spotify estetiğine sahip, hafif ve yüksek performanslı bir müzik çalar uygulamasıdır.  
-`yt-dlp` gücüyle milyonlarca parçaya erişirken, `VLC` motoru ile kristal netliğinde ses sunar.
+**Alterfy+**, YouTube kaynaklı müzik keşfini masaüstünde daha kontrollü, kişisel ve taşınabilir bir deneyime dönüştüren Alterfy yeniden yazımıdır. PyQt6 arayüzü, VLC oynatma motoru ve yt-dlp veri kaynağı korunur; ancak native araçlar işletim sistemi ve CPU mimarisine göre `tools/<platform>-<arch>/` altından çözülür.
 
----
+> Alterfy+ çevrim içi kaynakları oynatmak için YouTube altyapısını kullanır. İçeriklerin indirilmesi ve kullanımı, ilgili platformun şartlarına ve telif hukukuna uygun olmalıdır.
 
-# 📸 Ekran Görüntüleri
+## Alterfy+ ile gelenler
 
-| Ana Sayfa & Keşfet | Çalma Listesi Görünümü |
-|--------------------|------------------------|
-| ![Home](home.png) | ![Playlist](playlist.png) |
+- **Portable runtime:** Windows x64/ARM64, Linux x64/ARM64 ve macOS x64/ARM64 hedefleri için VLC, yt-dlp ve isteğe bağlı ffmpeg klasör düzeni.
+- **Gelişmiş ses:** Canlı VLC equalizer, bass boost, preamp, tiz ve `-14 LUFS` hedefli akıllı ses eşitleme filtresi.
+- **Çevrim dışı kütüphane çekirdeği:** yt-dlp standalone binary ile video veya playlist indirme; dosyalar `~/.alterfy-plus/offline` altında tutulur.
+- **Sanatçı ayrımı:** Kullanıcı sorgusu normalize edilir; Wikipedia REST API'den yerel önbelleğe sanatçı adı, açıklama, görsel ve sayfa bağlantısı alınır.
+- **Yerel öneriler:** Dinleme geçmişi, sanatçı yakınlığı, tür ve tekrar cezasını açıklanabilir bir skorla birleştirir.
+- **Arama önerileri:** Geçmiş sorgulardan hızlı, çevrim dışı öneriler.
+- **Playlist taşıma:** YouTube playlist URL'si `OfflineService.import_playlist` ile taşınabilir.
+- **Mevcut Alterfy özellikleri:** Senkron sözler, çoklu dil, playlist yönetimi, global medya tuşları ve asenkron yt-dlp araması.
 
----
-
-# ✨ Öne Çıkan Özellikler
-
-- 🎨 **Modern Tasarım**  
-  Akıcı animasyonlar, yuvarlatılmış köşeler ve karanlık mod desteği.
-
-- 🔍 **Gelişmiş Arama**  
-  Sanatçı, albüm veya parça bazlı anlık YouTube araması.
-
-- ⚡ **Asenkron Mimari**  
-  Arama ve yükleme işlemleri arka planda (`QThread`) yapılır, arayüz asla donmaz.
-
-- 📚 **Yerel Kütüphane**  
-  Kişiselleştirilmiş çalma listeleri oluşturma ve favori yönetimi.
-
-- ⌨️ **Global Kısayollar**  
-  `keyboard` modülü entegrasyonu ile arka planda kontrol imkanı.
-
-- 🌍 **Çoklu Dil Desteği**  
-  `i18n` modülü ile yerelleştirilmiş kullanıcı deneyimi.
-
----
-
-# 🛠️ Kurulum
-
-## Gereksinimler
-
-- [Python 3.10+](https://www.python.org/)
-- [VLC Media Player](https://www.videolan.org/vlc/)  
-  > Uygulamanın ses motoru için sisteminizde VLC Media Player kurulu ve `PATH` değişkenine eklenmiş olmalıdır.
-
----
-
-## Kurulum Adımları
+## Kurulum
 
 ```bash
-# Depoyu klonlayın
-git clone https://github.com/brt222/alterfy.git
-
-# Proje dizinine gidin
-cd alterfy
-
-# Gerekli bağımlılıkları yükleyin
+python -m venv .venv
+# Windows: .venv\\Scripts\\activate
+# Linux/macOS: source .venv/bin/activate
 pip install -r requirements.txt
-```
-
----
-
-# 🚀 Kullanım
-
-Uygulamayı başlatmak için:
-
-```bash
 python main.py
 ```
 
-## Temel Kullanım
+Geliştirme sırasında native araçlar PATH üzerinden bulunabilir. Portable çalışma için ilgili klasörleri oluşturun:
 
-### 🔎 Arama
-
-Üst bardaki arama kutusuna şarkı adını yazıp `Enter` tuşuna basın.
-
-### ▶️ Oynatma
-
-Kartlara çift tıklayarak veya sağ tık menüsünden **"Play Now"** seçeneğini kullanarak oynatabilirsiniz.
-
-### ➕ Playlist Yönetimi
-
-Şarkı kartlarındaki `+` butonuna basarak parçaları kütüphanenize ekleyebilirsiniz.
-
----
-
-# 📦 Kullanılan Teknolojiler
-
-- `PyQt6`
-- `yt-dlp`
-- `python-vlc`
-- `requests`
-- `keyboard`
-- `pillow`
-
----
-
-# 📜 Lisans
-
-Bu proje lisanslı bir içeriğe sahiptir.  
-Detaylı bilgi için `LICENSE.md` dosyasını inceleyin.
-
----
-
-# 🤝 Katkıda Bulunma
-
-1. Projeyi fork edin
-
-2. Özellik dalı oluşturun:
-
-```bash
-git checkout -b feature/YeniOzellik
+```text
+tools/
+  windows-x64/       # vlc(.exe), yt-dlp(.exe), ffmpeg(.exe)
+  windows-arm64/
+  linux-x64/
+  linux-arm64/
+  macos-x64/
+  macos-arm64/
 ```
 
-3. Değişikliklerinizi commit edin:
+`portable_manifest.json`, desteklenen hedefleri ve dağıtım lisansı notlarını içerir. VLC ve ffmpeg dağıtılırken kendi resmi lisans ve yeniden dağıtım koşulları korunmalıdır.
 
-```bash
-git commit -m "Eklendi: Yeni özellik"
+## Windows portable EXE
+
+PowerShell'i proje kökünde açın:
+
+```powershell
+Set-ExecutionPolicy -Scope Process Bypass
+.\\build_windows.ps1 -Arch x64
 ```
 
-4. Dalınıza push atın:
+Betik PyInstaller ile `dist/AlterfyPlus/` klasörünü üretir. Resmi VLC runtime/plugins, yt-dlp.exe ve isteğe bağlı ffmpeg.exe dosyaları `tools\\windows-x64\\` içine konulmalıdır. Bu klasör tek başına taşınabilir dağıtım olarak zip'lenebilir.
+
+## Mimari
+
+| Katman | Sorumluluk |
+|---|---|
+| `main.py` | PyQt6 ekranları, arama, kuyruk ve VLC oynatma |
+| `platform_tools.py` | Platform/mimari tespiti ve bundled tool çözümleme |
+| `audio_engine.py` | Equalizer profili, bass boost, loudness normalizasyonu ve WAV ölçümü |
+| `offline.py` | Portable yt-dlp ile indirme ve playlist taşıma |
+| `artist_profiles.py` | Wikipedia tabanlı sanatçı profili ve yerel cache |
+| `recommendations.py` | Yerel geçmişten öneri ve arama önerisi skoru |
+| `data_manager.py` | `~/.alterfy-plus` kalıcı kullanıcı verisi |
+| `lyrics.py` | lrclib senkron/plain sözler |
+
+## Test
 
 ```bash
-git push origin feature/YeniOzellik
+pytest -q
 ```
 
-5. Bir Pull Request açın 🚀
+## Lisans
 
----
-
-# 💫 Slogan
-
-> **Alterfy — Alternative for music, but alterfied.**
+Projenin lisans metni `LICENSE` dosyasındadır. VLC, yt-dlp, ffmpeg ve uzak veri servislerinin kendi lisansları ayrıca geçerlidir.
